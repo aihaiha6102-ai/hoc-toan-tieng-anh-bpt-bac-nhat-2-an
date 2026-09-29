@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Math English Starter #01</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; overflow-x: hidden; touch-action: manipulation; }
+        .app-container { max-width: 600px; margin: 0 auto; min-height: 100vh; background-color: #ffffff; box-shadow: 0 0 20px rgba(0,0,0,0.05); position: relative; display: flex; flex-direction: column; }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-in { animation: slideIn 0.3s ease-in-out; }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        
+        /* Custom radio buttons for quiz */
+        .option-btn { transition: all 0.2s; border: 2px solid #e2e8f0; }
+        .option-btn:hover:not(:disabled) { border-color: #cbd5e1; background-color: #f8fafc; transform: translateY(-1px); }
+        .option-btn.selected { border-color: #3b82f6; background-color: #eff6ff; }
+        .option-btn.correct { border-color: #22c55e; background-color: #f0fdf4; color: #166534; }
+        .option-btn.wrong { border-color: #ef4444; background-color: #fef2f2; color: #991b1b; }
+        
+        /* SVG Graph Styles */
+        svg { background-color: #f8fafc; border-radius: 0.5rem; border: 1px solid #e2e8f0; }
+        .axis { stroke: #64748b; stroke-width: 1.5; }
+        .grid { stroke: #e2e8f0; stroke-width: 1; }
+        .solid-line { stroke: #3b82f6; stroke-width: 2.5; }
+        .dashed-line { stroke: #3b82f6; stroke-width: 2.5; stroke-dasharray: 6 4; }
+        .point { fill: #ef4444; }
+        .point-label { font-size: 14px; font-weight: bold; fill: #1e293b; }
+        
+        /* Math font class */
+        .math-font { font-family: 'Times New Roman', Times, serif; font-style: italic; }
+        
+        /* Hide scrollbar for clean UI */
+        ::-webkit-scrollbar { width: 0px; background: transparent; }
+    </style>
+</head>
+<body>
+
+    <div id="app" class="app-container">
+        <!-- Content gets injected here -->
+    </div>
+
+    <script>
+        const DATA_WORDS = [
+            { id: 1, en: "inequality", phonetics: "/ˌɪnɪˈkwɑːləti/", vi: "bất phương trình", eq: "x + y < 5", graphType: 'none' },
+            { id: 2, en: "solution", phonetics: "/səˈluːʃən/", vi: "nghiệm", eq: "x + y < 5", graphType: 'point-true' },
+            { id: 3, en: "solution region", phonetics: "/səˈluːʃən ˈriːdʒən/", vi: "miền nghiệm", eq: "x + y < 5", graphType: 'region' },
+            { id: 4, en: "boundary line", phonetics: "/ˈbaʊndəri laɪn/", vi: "đường biên", eq: "x + y = 4", graphType: 'boundary' },
+            { id: 5, en: "solid line", phonetics: "/ˈsɑːlɪd laɪn/", vi: "nét liền", eq: "≤ , ≥ → SOLID LINE", graphType: 'solid' },
+            { id: 6, en: "dashed line", phonetics: "/dæʃt laɪn/", vi: "nét đứt", eq: "< , > → DASHED LINE", graphType: 'dashed' }
+        ];
+
+        const DATA_MATH_TALK = [
+            { en: "Is this a solution?", phonetics: "/ɪz ðɪs ə səˈluːʃən/", vi: "Đây có phải là một nghiệm không?" },
+            { en: "Choose a test point.", phonetics: "/tʃuːz ə test pɔɪnt/", vi: "Chọn một điểm kiểm tra." },
+            { en: "Draw the boundary line.", phonetics: "/drɔː ðə ˈbaʊndəri laɪn/", vi: "Vẽ đường biên." },
+            { en: "Solid or dashed?", phonetics: "/ˈsɑːlɪd ɔːr dæʃt/", vi: "Nét liền hay nét đứt?" }
+        ];
+
+        const ROUTES = [
+            'HOME', 'WORDS', 'LISTEN_REPEAT', 'QUICK_REVIEW', 'MATH_TALK', 
+            'SPEAKING_L1', 'SPEAKING_L2', 'SPEAKING_L3', 'FLASHCARDS', 
+            'MINI_GAME', 'SPEED_ROUND', 'FINAL_CHALLENGE', 'EXIT_TICKET', 'COMPLETE'
+        ];
+
+        let state = {
+            screen: 'HOME',
+            subIndex: 0,
+            score: 0,
+            combo: 0,
+            timer: null,
+            timerValue: 0,
+            isAnswering: false
+        };
+
+        const synth = window.speechSynthesis;
+        let engVoice = null;
+        
+        function initVoice() {
+            let voices = synth.getVoices();
+            // Try to find an American English voice
+            engVoice = voices.find(v => v.lang === 'en-US' && (v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Alex'))) || 
+                       voices.find(v => v.lang.startsWith('en')) || voices[0];
+        }
+        
+        if (speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = initVoice;
+        }
+
+        function speak(text, rate = 0.85) {
+            try {
+                if(!engVoice) initVoice();
+                synth.cancel(); // Stop current speech
+                const utterance = new SpeechSynthesisUtterance(text);
+                if (engVoice) utterance.voice = engVoice;
+                utterance.rate = rate;
+                utterance.lang = 'en-US';
+                synth.speak(utterance);
+            } catch (e) {
+                console.error("Audio error:", e);
+            }
+        }
+
+        function getSVGGraph(type) {
+            // Core coordinate system setup
+            const w = 300, h = 200, cx = 150, cy = 130, scale = 25;
+            
+            // Hatching pattern (red diagonal lines for NON-solution region)
+            const defs = `
+                <defs>
+                    <pattern id="hatch" patternUnits="userSpaceOnUse" width="8" height="8">
+                        <path d="M-1,1 l2,-2 M0,8 l8,-8 M7,9 l2,-2" stroke="#ef4444" stroke-width="0.8" opacity="0.6"/>
+                    </pattern>
+                </defs>
+            `;
+            
+            const grid = (() => {
+                let g = '';
+                for(let i=0; i<10; i++) {
+                    g += `<line class="grid" x1="0" y1="${cy - i*scale}" x2="${w}" y2="${cy - i*scale}" />`;
+                    g += `<line class="grid" x1="0" y1="${cy + i*scale}" x2="${w}" y2="${cy + i*scale}" />`;
+                    g += `<line class="grid" x1="${cx - i*scale}" y1="0" x2="${cx - i*scale}" y2="${h}" />`;
+                    g += `<line class="grid" x1="${cx + i*scale}" y1="0" x2="${cx + i*scale}" y2="${h}" />`;
+                }
+                return g;
+            })();
+
+            const axes = `
+                <!-- X axis -->
+                <line class="axis" x1="0" y1="${cy}" x2="${w}" y2="${cy}" />
+                <polygon points="${w},${cy} ${w-8},${cy-4} ${w-8},${cy+4}" fill="#64748b" />
+                <text x="${w-15}" y="${cy+15}" font-family="Inter" font-size="12" fill="#64748b">x</text>
+                
+                <!-- Y axis -->
+                <line class="axis" x1="${cx}" y1="0" x2="${cx}" y2="${h}" />
+                <polygon points="${cx},0 ${cx-4},8 ${cx+4},8" fill="#64748b" />
+                <text x="${cx+10}" y="15" font-family="Inter" font-size="12" fill="#64748b">y</text>
+                
+                <!-- Origin -->
+                <text x="${cx-12}" y="${cy+15}" font-family="Inter" font-size="12" fill="#64748b">O</text>
+            `;
+
+            let content = '';
+
+            // Generate specific visuals based on type
+            if (type === 'none') {
+                content = ''; // Just axes
+            } 
+            else if (type === 'point-true') {
+                // x + y < 5. Line through (5,0) and (0,5). Solid dashed. Point A(1,2).
+                const x1 = cx - 2*scale, y1 = cy - 7*scale;
+                const x2 = cx + 7*scale, y2 = cy + 2*scale;
+                content = `
+                    <line class="dashed-line" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" />
+                    <circle class="point" cx="${cx + 1*scale}" cy="${cy - 2*scale}" r="4" fill="#22c55e" />
+                    <text class="point-label" x="${cx + 1*scale + 8}" y="${cy - 2*scale - 8}">A(1,2)</text>
+                    <text font-family="Inter" font-size="14" fill="#22c55e" x="${cx + 2*scale}" y="${cy - 1*scale}">1 + 2 &lt; 5 ✓</text>
+                `;
+            }
+            else if (type === 'point-false') {
+                 // x + y < 5. Point B(4,3)
+                 const x1 = cx - 2*scale, y1 = cy - 7*scale;
+                 const x2 = cx + 7*scale, y2 = cy + 2*scale;
+                 content = `
+                     <line class="dashed-line" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" />
+                     <circle class="point" cx="${cx + 4*scale}" cy="${cy - 3*scale}" r="4" fill="#ef4444" />
+                     <text class="point-label" x="${cx + 4*scale + 8}" y="${cy - 3*scale - 8}">B(4,3)</text>
+                 `;
+            }
+            else if (type === 'region') {
+                // x + y < 5. Hatch ABOVE the line (non-solution)
+                const x1 = cx - 5*scale, y1 = cy - 10*scale; // Far top left
+                const x2 = cx + 10*scale, y2 = cy + 5*scale; // Far bottom right
+                content = `
+                    <!-- Shading non-solution region (x+y >= 5) -->
+                    <polygon points="${x1},${y1} ${x2},${y1} ${x2},${y2}" fill="url(#hatch)" />
+                    <line class="dashed-line" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" />
+                    <text font-family="Inter" font-size="12" fill="#ef4444" x="${cx + 3*scale}" y="${cy - 4*scale}" opacity="0.8">Hatch non-solution</text>
+                `;
+            }
+            else if (type === 'boundary') {
+                // x + y = 4 -> Points (4,0) and (0,4)
+                const x1 = cx - 2*scale, y1 = cy - 6*scale;
+                const x2 = cx + 6*scale, y2 = cy + 2*scale;
+                content = `
+                    <line class="solid-line" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#10b981" />
+                    <text font-family="Inter" font-weight="bold" font-size="14" fill="#10b981" x="${cx + 2*scale}" y="${cy - 3*scale}">x + y = 4</text>
+                `;
+            }
+            else if (type === 'solid') {
+                // y = 2x
+                const x1 = cx - 3*scale, y1 = cy + 6*scale;
+                const x2 = cx + 3*scale, y2 = cy - 6*scale;
+                content = `<line class="solid-line" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" />`;
+            }
+            else if (type === 'dashed') {
+                // y = 2x
+                const x1 = cx - 3*scale, y1 = cy + 6*scale;
+                const x2 = cx + 3*scale, y2 = cy - 6*scale;
+                content = `<line class="dashed-line" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" />`;
+            }
+            else if (type === 'custom_leq') {
+                // x + y <= 4. Solid line, hatch above.
+                 const x1 = cx - 4*scale, y1 = cy - 8*scale; 
+                 const x2 = cx + 8*scale, y2 = cy + 4*scale; 
+                 content = `
+                     <polygon points="${x1},${y1} ${x2},${y1} ${x2},${y2}" fill="url(#hatch)" />
+                     <line class="solid-line" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" />
+                 `;
+            }
+            else if (type === 'custom_gt') {
+                // 2x + y > 6 -> y > -2x + 6. Hatch below (y <= -2x+6)
+                const x1 = cx - 1*scale, y1 = cy - 8*scale; // y=8 -> x = -1
+                const x2 = cx + 5*scale, y2 = cy + 4*scale; // y=-4 -> x = 5
+                content = `
+                    <polygon points="${x1},${y2} ${x2},${y2} ${x1},${y1}" fill="url(#hatch)" />
+                    <line class="dashed-line" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" />
+                `;
+            }
+
+            return `<svg width="100%" height="200" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">
+                ${defs} ${grid} ${axes} ${content}
+            </svg>`;
+        }
+
+        function navigate(screenName, subIndex = 0) {
+            state.screen = screenName;
+            state.subIndex = subIndex;
+            state.isAnswering = false;
+            if(state.timer) { 
+                clearTimeout(state.timer); 
+                clearInterval(state.timer); 
+                state.timer = null; // Fix: Xóa hoàn toàn trạng thái timer cũ
+            }
+            render();
+            window.scrollTo(0, 0);
+        }
+
+        function createHeader(title, progressLabel = "") {
+            let progressIndex = ROUTES.indexOf(state.screen);
+            let progressPct = Math.max(5, Math.min(100, (progressIndex / (ROUTES.length - 1)) * 100));
+            
+            return `
+                <div class="p-4 bg-white sticky top-0 z-10 border-b border-slate-100">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-slate-400 text-sm font-bold tracking-wider">${progressLabel || state.screen.replace('_', ' ')}</span>
+                        ${state.screen !== 'HOME' && state.screen !== 'COMPLETE' ? `<button onclick="navigate('HOME')" class="text-slate-400 hover:text-slate-600">🏠</button>` : ''}
+                    </div>
+                    <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                        <div class="bg-blue-500 h-full transition-all duration-500" style="width: ${progressPct}%"></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAudioBtn(text, size = "large") {
+            if(size === "large") {
+                return `<button onclick="speak('${text.replace(/'/g, "\\'")}')" class="flex items-center justify-center gap-2 bg-blue-50 text-blue-600 p-4 rounded-xl font-bold text-lg hover:bg-blue-100 transition-colors active:scale-95 shadow-sm border border-blue-100">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clip-rule="evenodd"></path></svg>
+                    LISTEN
+                </button>`;
+            }
+            return `<button onclick="speak('${text.replace(/'/g, "\\'")}')" class="p-2 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors shadow-sm inline-flex items-center justify-center">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM12.293 7.293a1 1 0 011.414 0L15 8.586l1.293-1.293a1 1 0 111.414 1.414L16.414 10l1.293 1.293a1 1 0 01-1.414 1.414L15 11.414l-1.293 1.293a1 1 0 01-1.414-1.414L13.586 10l-1.293-1.293a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+            </button>`;
+        }
+
+        function renderHome() {
+            return `
+                <div class="flex-1 flex flex-col items-center justify-center p-6 text-center fade-in bg-gradient-to-b from-blue-50 to-white">
+                    <div class="bg-blue-100 text-blue-800 font-bold px-3 py-1 rounded-full text-sm mb-6">MATH ENGLISH STARTER #01</div>
+                    <h1 class="text-3xl font-black text-slate-800 mb-2 leading-tight">Linear Inequality in Two Variables</h1>
+                    <h2 class="text-xl text-slate-500 font-medium mb-8">Bất phương trình bậc nhất hai ẩn</h2>
+                    
+                    <div class="grid grid-cols-2 gap-4 w-full max-w-xs mb-8">
+                        <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex flex-col items-center"><span class="text-2xl mb-1">🎧</span><span class="font-bold text-slate-700">Listen</span><span class="text-xs text-slate-400">Nghe</span></div>
+                        <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex flex-col items-center"><span class="text-2xl mb-1">👀</span><span class="font-bold text-slate-700">Look</span><span class="text-xs text-slate-400">Nhìn</span></div>
+                        <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex flex-col items-center"><span class="text-2xl mb-1">🗣️</span><span class="font-bold text-slate-700">Speak</span><span class="text-xs text-slate-400">Nói</span></div>
+                        <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex flex-col items-center"><span class="text-2xl mb-1">🎮</span><span class="font-bold text-slate-700">Play</span><span class="text-xs text-slate-400">Chơi</span></div>
+                    </div>
+                    
+                    <div class="flex items-center gap-2 text-slate-500 font-medium mb-6 bg-slate-50 px-4 py-2 rounded-full">
+                        <span>⏱</span> 8–12 minutes
+                    </div>
+                    
+                    <div class="mb-10 text-slate-600 bg-amber-50 p-4 rounded-xl border border-amber-100">
+                        <p class="font-bold text-amber-800 mb-1">Don't worry about mistakes!</p>
+                        <p class="text-sm">Đừng lo nếu em phát âm chưa chuẩn.</p>
+                    </div>
+                    
+                    <button onclick="initVoice(); navigate('WORDS')" class="w-full max-w-xs bg-blue-600 hover:bg-blue-700 text-white text-xl font-bold py-4 px-8 rounded-2xl shadow-lg shadow-blue-200 transition-transform transform hover:scale-105 active:scale-95">
+                        START MISSION
+                    </button>
+                </div>
+            `;
+        }
+
+        function renderWords() {
+            const word = DATA_WORDS[state.subIndex];
+            const isLast = state.subIndex === DATA_WORDS.length - 1;
+            
+            return `
+                ${createHeader('WORDS', `MISSION 1: MEET THE WORDS (${state.subIndex + 1}/6)`)}
+                <div class="flex-1 flex flex-col p-6 fade-in">
+                    <div class="flex-1 flex flex-col items-center justify-center">
+                        <div class="bg-white border-2 border-slate-100 rounded-3xl p-8 w-full max-w-sm shadow-sm text-center mb-8">
+                            <h2 class="text-4xl font-black text-slate-800 mb-2">${word.en}</h2>
+                            <p class="text-lg text-slate-400 font-mono mb-4">${word.phonetics}</p>
+                            <p class="text-xl font-medium text-blue-600 mb-6 bg-blue-50 inline-block px-4 py-1 rounded-full">${word.vi}</p>
+                            
+                            <div class="bg-slate-50 p-4 rounded-xl mb-6 min-h-[120px] flex flex-col items-center justify-center">
+                                ${word.eq !== '' ? `<p class="math-font text-2xl font-bold mb-3">${word.eq}</p>` : ''}
+                                ${getSVGGraph(word.graphType)}
+                            </div>
+                            
+                            <div class="w-full">
+                                ${renderAudioBtn(word.en)}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-4">
+                        ${state.subIndex > 0 ? 
+                            `<button onclick="navigate('WORDS', ${state.subIndex - 1})" class="flex-1 py-4 font-bold text-slate-500 bg-slate-100 rounded-2xl hover:bg-slate-200 transition-colors">BACK</button>` 
+                            : `<div class="flex-1"></div>`}
+                        <button onclick="navigate(${isLast ? "'LISTEN_REPEAT'" : "'WORDS'"}, ${isLast ? 0 : state.subIndex + 1})" class="flex-1 py-4 font-bold text-white bg-blue-600 rounded-2xl shadow-md hover:bg-blue-700 transition-transform active:scale-95">
+                            ${isLast ? 'NEXT MISSION' : 'NEXT WORD'}
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderListenRepeat() {
+            const word = DATA_WORDS[state.subIndex];
+            
+            // Interaction steps: 0: Init, 1: Countdown, 2: Done
+            const step = state.isAnswering ? 2 : (state.timerValue > 0 ? 1 : 0);
+
+            return `
+                ${createHeader('LISTEN & REPEAT', `PRACTICE: LISTEN & REPEAT (${state.subIndex + 1}/6)`)}
+                <div class="flex-1 flex flex-col p-6 fade-in">
+                    
+                    <div class="text-center mb-8 flex justify-center gap-4">
+                        <span class="${step >= 0 ? 'text-blue-600 font-bold bg-blue-50' : 'text-slate-400'} px-3 py-1 rounded-full transition-colors">👀 LOOK</span>
+                        <span class="${step >= 0 ? 'text-blue-600 font-bold bg-blue-50' : 'text-slate-400'} px-3 py-1 rounded-full transition-colors">🔊 LISTEN</span>
+                        <span class="${step >= 1 ? 'text-blue-600 font-bold bg-blue-50' : 'text-slate-400'} px-3 py-1 rounded-full transition-colors">🗣️ REPEAT</span>
+                    </div>
+
+                    <div class="flex-1 flex flex-col items-center justify-center">
+                        <h2 class="text-5xl font-black text-slate-800 mb-8">${word.en}</h2>
+                        
+                        ${step === 0 ? `
+                            <button onclick="speak('${word.en}'); startSpeakingCountdown()" class="w-48 h-48 bg-blue-50 rounded-full flex flex-col items-center justify-center shadow-inner border-4 border-white hover:bg-blue-100 transition-transform active:scale-95 shadow-md">
+                                <svg class="w-16 h-16 text-blue-500 mb-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clip-rule="evenodd"></path></svg>
+                                <span class="font-bold text-blue-600 text-xl">1. Listen</span>
+                            </button>
+                        ` : step === 1 ? `
+                            <div class="w-48 h-48 bg-amber-50 rounded-full flex flex-col items-center justify-center border-4 border-amber-200 animate-pulse">
+                                <span class="text-6xl font-black text-amber-500 mb-2">${state.timerValue}</span>
+                                <span class="font-bold text-amber-600">SPEAK NOW!</span>
+                            </div>
+                        ` : `
+                            <div class="w-48 h-48 bg-green-50 rounded-full flex flex-col items-center justify-center border-4 border-green-200">
+                                <span class="text-5xl mb-2">🎉</span>
+                                <span class="font-bold text-green-600">Great!</span>
+                            </div>
+                        `}
+                    </div>
+
+                    <div class="mt-8 h-16">
+                        ${step === 2 ? `
+                            <button onclick="navigate(${state.subIndex === DATA_WORDS.length - 1 ? "'QUICK_REVIEW'" : "'LISTEN_REPEAT'"}, ${state.subIndex === DATA_WORDS.length - 1 ? 0 : state.subIndex + 1})" class="w-full py-4 font-bold text-white bg-blue-600 rounded-2xl shadow-md hover:bg-blue-700 transition-transform active:scale-95 fade-in">
+                                Keep going! ➔
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        window.startSpeakingCountdown = function() {
+            if (state.timer) return; // Fix: Tránh click đúp tạo nhiều timer
+            state.timerValue = 3;
+            state.timer = setInterval(() => {
+                state.timerValue--;
+                if(state.timerValue <= 0) {
+                    clearInterval(state.timer);
+                    state.timer = null;
+                    state.isAnswering = true;
+                }
+                render();
+            }, 1000);
+            render(); // Render lần đầu để hiện số 3
+        }
+
+        function renderQuickReview() {
+            // Pick a random word for this step
+            if(!state.quizData) {
+                const w = DATA_WORDS[Math.floor(Math.random() * DATA_WORDS.length)];
+                let options = DATA_WORDS.filter(x => x.id !== w.id).sort(() => 0.5 - Math.random()).slice(0, 3).map(x => x.vi);
+                options.push(w.vi);
+                options.sort(() => 0.5 - Math.random());
+                state.quizData = { word: w, options: options, attempts: 0 };
+            }
+
+            const q = state.quizData;
+
+            return `
+                ${createHeader('QUICK_REVIEW', 'QUICK REVIEW - MEANING')}
+                <div class="flex-1 flex flex-col p-6 fade-in">
+                    <div class="flex-1 flex flex-col items-center justify-center">
+                        <p class="text-slate-500 font-bold mb-4 uppercase tracking-widest">What does it mean?</p>
+                        <div class="bg-blue-50 border-2 border-blue-100 rounded-3xl p-8 w-full shadow-sm text-center mb-8">
+                            <h2 class="text-4xl font-black text-slate-800">${q.word.en}</h2>
+                            <div class="mt-4 flex justify-center">${renderAudioBtn(q.word.en, "small")}</div>
+                        </div>
+
+                        <div class="w-full space-y-3">
+                            ${q.options.map((opt, i) => `
+                                <button onclick="checkQuickReview('${opt}')" class="option-btn w-full p-4 rounded-xl text-lg font-medium text-left bg-white flex justify-between items-center group">
+                                    <span>${['A','B','C','D'][i]}. ${opt}</span>
+                                    <span class="opacity-0 group-hover:opacity-50 transition-opacity">👈</span>
+                                </button>
+                            `).join('')}
+                        </div>
+                        
+                        <div id="feedback-area" class="h-16 mt-6 flex items-center justify-center w-full">
+                            <!-- Feedback injected here -->
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        window.checkQuickReview = function(selectedOpt) {
+            const isCorrect = selectedOpt === state.quizData.word.vi;
+            const feedbackArea = document.getElementById('feedback-area');
+            const btns = document.querySelectorAll('.option-btn');
+            
+            btns.forEach(b => {
+                b.disabled = true;
+                if(b.innerText.includes(selectedOpt)) {
+                    b.classList.add(isCorrect ? 'correct' : 'wrong');
+                }
+                if(b.innerText.includes(state.quizData.word.vi)) {
+                    b.classList.add('correct'); // always show correct
+                }
+            });
+
+            if(isCorrect) {
+                feedbackArea.innerHTML = `<div class="bg-green-100 text-green-700 px-6 py-3 rounded-xl font-bold text-lg flex items-center gap-2 slide-in">✓ Great! <button onclick="state.quizData=null; navigate('MATH_TALK')" class="ml-4 bg-green-500 text-white px-4 py-1 rounded-lg hover:bg-green-600">Next</button></div>`;
+            } else {
+                state.quizData.attempts++;
+                feedbackArea.innerHTML = `<div class="bg-red-100 text-red-700 px-6 py-3 rounded-xl font-bold text-lg flex items-center gap-2 slide-in">✕ Try again! <button onclick="resetQuickReviewOpts()" class="ml-4 bg-red-500 text-white px-4 py-1 rounded-lg hover:bg-red-600">Retry</button></div>`;
+            }
+        }
+        
+        window.resetQuickReviewOpts = function() {
+            const btns = document.querySelectorAll('.option-btn');
+            btns.forEach(b => {
+                b.disabled = false;
+                b.className = 'option-btn w-full p-4 rounded-xl text-lg font-medium text-left bg-white flex justify-between items-center group';
+            });
+            document.getElementById('feedback-area').innerHTML = '';
+        }
+
+        function renderMathTalk() {
+            const phrase = DATA_MATH_TALK[state.subIndex];
+            const isLast = state.subIndex === DATA_MATH_TALK.length - 1;
+            
+            return `
+                ${createHeader('MATH_TALK', `MISSION 2: MATH TALK (${state.subIndex + 1}/4)`)}
+                <div class="flex-1 flex flex-col p-6 fade-in bg-gradient-to-br from-indigo-50 to-white">
+                    <div class="flex-1 flex flex-col items-center justify-center">
+                        <div class="bg-white border-2 border-indigo-100 rounded-3xl p-8 w-full shadow-sm text-center mb-8 relative overflow-hidden">
+                            <div class="absolute top-0 right-0 w-24 h-24 bg-indigo-50 rounded-bl-full -mr-4 -mt-4 z-0"></div>
+                            
+                            <h2 class="text-3xl font-black text-indigo-900 mb-4 relative z-10 leading-tight">"${phrase.en}"</h2>
+                            <p class="text-base text-slate-400 font-mono mb-6 relative z-10">${phrase.phonetics}</p>
+                            
+                            <div class="bg-indigo-50 p-4 rounded-xl mb-6 relative z-10">
+                                <p class="text-lg font-medium text-indigo-700">${phrase.vi}</p>
+                            </div>
+                            
+                            <div class="w-full relative z-10">
+                                <button onclick="speak('${phrase.en.replace(/'/g, "\\'")}')" class="w-full flex items-center justify-center gap-2 bg-indigo-100 text-indigo-700 p-4 rounded-xl font-bold text-lg hover:bg-indigo-200 transition-colors active:scale-95">
+                                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clip-rule="evenodd"></path></svg>
+                                    LISTEN
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-4">
+                        ${state.subIndex > 0 ? 
+                            `<button onclick="navigate('MATH_TALK', ${state.subIndex - 1})" class="flex-1 py-4 font-bold text-slate-500 bg-slate-100 rounded-2xl hover:bg-slate-200">BACK</button>` 
+                            : `<div class="flex-1"></div>`}
+                        <button onclick="navigate(${isLast ? "'SPEAKING_L1'" : "'MATH_TALK'"}, ${isLast ? 0 : state.subIndex + 1})" class="flex-1 py-4 font-bold text-white bg-indigo-600 rounded-2xl shadow-md hover:bg-indigo-700 active:scale-95">
+                            ${isLast ? 'NEXT MISSION' : 'NEXT'}
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        const SPEAKING_DATA = {
+            L1: [
+                { qAudio: "Solution or boundary line?", visualType: 'boundary', math: "x + y = 4", ans: "Boundary line." },
+                { qAudio: "Solution or not a solution?", visualType: 'point-true', math: "A(1,2)", ans: "Solution." },
+                { qAudio: "Solid or dashed?", visualType: 'dashed', math: "x + y < 4", ans: "Dashed." },
+                { qAudio: "Solid or dashed?", visualType: 'solid', math: "x + y ≥ 4", ans: "Solid." }
+            ],
+            L2: [
+                { qAudio: "Is this a solution?", visualType: 'point-true', math: "x + y < 5<br/>A(1,2)", ans: "Yes, it is." },
+                { qAudio: "Is this a solution?", visualType: 'point-false', math: "x + y < 5<br/>B(4,3)", ans: "No, it isn't." },
+                { qAudio: "Solid or dashed?", visualType: 'solid', math: "2x + y ≤ 6", ans: "Solid." },
+                { qAudio: "Solid or dashed?", visualType: 'dashed', math: "2x + y > 6", ans: "Dashed." }
+            ],
+            L3: [
+                { pattern: "The boundary is a ______ line.", visualType: 'custom_leq', math: "x + y ≤ 4", ans: "The boundary is a solid line." },
+                { pattern: "The boundary is a ______ line.", visualType: 'custom_gt', math: "x + y < 4", ans: "The boundary is a dashed line." },
+                { pattern: "Point A is _________.", visualType: 'point-true', math: "A(1,2)", ans: "Point A is a solution." },
+                { pattern: "Point B is _________.", visualType: 'point-false', math: "B(4,3)", ans: "Point B is not a solution." }
+            ]
+        };
+
+        function renderSpeakingLevel(levelStr, nextScreen) {
+            const questions = SPEAKING_DATA[levelStr];
+            const q = questions[state.subIndex];
+            const isLast = state.subIndex === questions.length - 1;
+            
+            let topTitle = levelStr === 'L1' ? 'LEVEL 1: ONE-WORD ANSWERS' : (levelStr === 'L2' ? 'LEVEL 2: SHORT ANSWERS' : 'LEVEL 3: COMPLETE SENTENCE');
+
+            // Auto-play audio on mount if not answered yet and it's L1/L2
+            if(q.qAudio && !state.isAnswering && !state.timer) {
+                setTimeout(() => speak(q.qAudio), 500);
+            }
+
+            return `
+                ${createHeader(levelStr, `MISSION 3: ${topTitle}`)}
+                <div class="flex-1 flex flex-col p-6 fade-in bg-slate-50">
+                    
+                    <div class="text-center mb-4">
+                        <span class="inline-block bg-slate-200 text-slate-600 text-xs font-bold px-2 py-1 rounded uppercase tracking-wide">Question ${state.subIndex + 1}/${questions.length}</span>
+                    </div>
+
+                    <div class="flex-1 flex flex-col items-center">
+                        <div class="w-full bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-6 flex flex-col items-center">
+                            ${q.math ? `<p class="math-font text-xl font-bold text-slate-800 mb-4 text-center">${q.math}</p>` : ''}
+                            <div class="w-full pointer-events-none">${getSVGGraph(q.visualType)}</div>
+                        </div>
+
+                        ${q.qAudio ? `
+                            <button onclick="speak('${q.qAudio.replace(/'/g, "\\'")}')" class="flex items-center gap-2 bg-blue-100 text-blue-800 px-6 py-3 rounded-full font-semibold mb-6 hover:bg-blue-200 active:scale-95">
+                                🔊 ${q.qAudio}
+                            </button>
+                        ` : ''}
+
+                        ${q.pattern ? `
+                            <div class="bg-amber-50 border border-amber-200 text-amber-800 px-6 py-4 rounded-xl font-semibold mb-6 text-center w-full text-lg">
+                                Pattern: ${q.pattern}
+                            </div>
+                        ` : ''}
+
+                        <div class="w-full flex-1 flex flex-col justify-end min-h-[120px]">
+                            ${!state.isAnswering && !state.timer ? `
+                                <button onclick="startSimulatedSpeaking()" class="w-full bg-slate-800 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 text-xl hover:bg-slate-700 shadow-lg active:scale-95 transition-transform">
+                                    🎤 TAP TO SPEAK
+                                </button>
+                            ` : state.timer ? `
+                                <div class="w-full flex flex-col items-center">
+                                    <div class="text-slate-500 font-bold mb-2">Speak now! Revealing answer in...</div>
+                                    <div class="text-4xl font-black text-blue-500 animate-pulse">${state.timerValue}</div>
+                                </div>
+                            ` : `
+                                <div class="w-full bg-green-50 border-2 border-green-200 rounded-2xl p-6 text-center slide-in relative overflow-hidden">
+                                    <div class="absolute top-0 right-0 bg-green-200 text-green-800 text-xs font-bold px-2 py-1 rounded-bl-lg">Correct Answer</div>
+                                    <p class="text-2xl font-bold text-green-700 mb-4 mt-2">✓ "${q.ans}"</p>
+                                    <button onclick="speak('${q.ans.replace(/'/g, "\\'")}')" class="bg-white border border-green-200 text-green-700 px-4 py-2 rounded-full font-bold shadow-sm inline-flex items-center gap-2 hover:bg-green-100">
+                                        🔊 Listen to answer
+                                    </button>
+                                </div>
+                            `}
+                        </div>
+                    </div>
+
+                    <div class="mt-6 h-14">
+                        ${state.isAnswering ? `
+                            <button onclick="navigate(${isLast ? `'${nextScreen}'` : `'SPEAKING_${levelStr}'`}, ${isLast ? 0 : state.subIndex + 1})" class="w-full py-4 font-bold text-white bg-blue-600 rounded-2xl shadow-md hover:bg-blue-700 active:scale-95 fade-in">
+                                ${isLast ? 'CONTINUE ➔' : 'NEXT QUESTION ➔'}
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        window.startSimulatedSpeaking = function() {
+            if (state.timer) return; // Fix: Ngăn việc bấm nhiều lần
+            state.timerValue = 3;
+            state.timer = setInterval(() => {
+                state.timerValue--;
+                if(state.timerValue <= 0) {
+                    clearInterval(state.timer);
+                    state.timer = null; // Giải phóng timer
+                    state.isAnswering = true;
+                }
+                render();
+            }, 1000);
+            render(); // Cập nhật giao diện đếm ngược ngay lập tức
+        }
+
+        function renderSpeakingL1() { return renderSpeakingLevel('L1', 'SPEAKING_L2'); }
+        function renderSpeakingL2() { return renderSpeakingLevel('L2', 'SPEAKING_L3'); }
+        function renderSpeakingL3() { return renderSpeakingLevel('L3', 'FLASHCARDS'); }
+
+        const FLASHCARD_DATA = [
+            { eq: "x + y < 5", q: "Solid or dashed?", a: "Dashed line.", t: "dashed" },
+            { eq: "x + y ≥ 5", q: "Solid or dashed?", a: "Solid line.", t: "solid" },
+            { eq: "x + y < 5<br/>A(1,1)", q: "Is this a solution?", a: "Yes, it is.", t: "point-true" },
+            { eq: "x + y < 5<br/>B(4,3)", q: "Is this a solution?", a: "No, it isn't.", t: "point-false" }
+        ];
+
+        function renderFlashcards() {
+            const card = FLASHCARD_DATA[state.subIndex];
+            const isLast = state.subIndex === FLASHCARD_DATA.length - 1;
+
+            if(!state.isAnswering && !state.timer) {
+                setTimeout(() => speak(card.q), 300);
+            }
+
+            return `
+                ${createHeader('FLASHCARDS', `🎴 FLASHCARDS (${state.subIndex + 1}/${FLASHCARD_DATA.length})`)}
+                <div class="flex-1 flex flex-col items-center p-6 fade-in bg-slate-800 text-white">
+                    <div class="w-full flex-1 flex flex-col items-center justify-center perspective-1000">
+                        <div class="w-full max-w-sm aspect-[3/4] relative transition-transform duration-500 transform-style-3d ${state.isAnswering ? 'rotate-y-180' : ''}">
+                            
+                            <!-- Front of card -->
+                            <div class="absolute inset-0 backface-hidden bg-white text-slate-800 rounded-3xl p-6 shadow-2xl flex flex-col items-center border-4 border-slate-200">
+                                <p class="math-font text-2xl font-bold mb-4 text-center mt-4">${card.eq}</p>
+                                <div class="w-full flex-1 pointer-events-none">${getSVGGraph(card.t)}</div>
+                                <div class="w-full bg-blue-50 text-blue-800 font-bold p-4 rounded-xl text-center mt-4">
+                                    🔊 ${card.q}
+                                </div>
+                            </div>
+
+                            <!-- Back of card -->
+                            <div class="absolute inset-0 backface-hidden bg-blue-600 text-white rounded-3xl p-6 shadow-2xl flex flex-col items-center justify-center border-4 border-blue-400 rotate-y-180">
+                                <p class="text-slate-200 font-bold mb-2 uppercase tracking-wider">Answer</p>
+                                <h2 class="text-4xl font-black text-center mb-8">${card.a}</h2>
+                                <button onclick="speak('${card.a.replace(/'/g, "\\'")}')" class="bg-white text-blue-600 rounded-full p-4 hover:bg-blue-50">
+                                    <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clip-rule="evenodd"></path></svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="w-full mt-8 h-16">
+                        ${!state.isAnswering && !state.timer ? `
+                            <button onclick="startSimulatedSpeaking()" class="w-full py-4 font-bold text-slate-800 bg-white rounded-2xl shadow-lg active:scale-95 text-lg">
+                                🎤 TAP TO SPEAK
+                            </button>
+                        ` : state.timer ? `
+                            <div class="text-center text-slate-300 font-bold">Flipping in <span class="text-white text-2xl">${state.timerValue}</span></div>
+                        ` : `
+                            <button onclick="navigate(${isLast ? "'MINI_GAME'" : "'FLASHCARDS'"}, ${isLast ? 0 : state.subIndex + 1})" class="w-full py-4 font-bold text-slate-900 bg-green-400 rounded-2xl shadow-lg hover:bg-green-300 active:scale-95 fade-in text-lg">
+                                ${isLast ? 'GO TO MINI GAME ➔' : 'NEXT CARD ➔'}
+                            </button>
+                        `}
+                    </div>
+                </div>
+                <style>
+                    .perspective-1000 { perspective: 1000px; }
+                    .transform-style-3d { transform-style: preserve-3d; }
+                    .backface-hidden { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+                    .rotate-y-180 { transform: rotateY(180deg); }
+                </style>
+            `;
+        }
+
+        const GAME_DATA = [
+            { type: 'match', q: "solution", opts: ["nghiệm", "đường biên", "miền nghiệm"], a: "nghiệm" },
+            { type: 'solid_dashed', q: "x + y < 3", opts: ["SOLID", "DASHED"], a: "DASHED" },
+            { type: 'solid_dashed', q: "2x - y ≥ 5", opts: ["SOLID", "DASHED"], a: "SOLID" },
+            { type: 'is_solution', q: "x + y ≤ 5<br/>A(2,1)", opts: ["YES", "NO"], a: "YES" },
+            { type: 'find_boundary', q: "x + y < 4", opts: ["x + y < 4", "x + y = 4", "x + y > 4"], a: "x + y = 4" },
+            { type: 'match', q: "boundary line", opts: ["nét liền", "đường biên", "bất phương trình"], a: "đường biên" },
+            { type: 'solid_dashed', q: "3x + y ≤ 6", opts: ["SOLID", "DASHED"], a: "SOLID" },
+            { type: 'is_solution', q: "x + y < 2<br/>B(3,3)", opts: ["YES", "NO"], a: "NO" }
+        ];
+
+        function renderMiniGame() {
+            if(state.subIndex === 0 && !state.gameInit) {
+                state.score = 0;
+                state.gameInit = true;
+            }
+
+            const q = GAME_DATA[state.subIndex];
+            const isLast = state.subIndex === GAME_DATA.length - 1;
+
+            let promptHtml = "";
+            if (q.type === 'match') promptHtml = `<div class="text-lg text-slate-500 font-bold mb-2 uppercase">Match meaning</div><h2 class="text-4xl font-black text-slate-800 mb-6">${q.q}</h2>`;
+            else if (q.type === 'solid_dashed') promptHtml = `<div class="text-lg text-slate-500 font-bold mb-2 uppercase">Solid or dashed?</div><p class="math-font text-3xl font-bold text-slate-800 mb-6">${q.q}</p>`;
+            else if (q.type === 'is_solution') promptHtml = `<div class="text-lg text-slate-500 font-bold mb-2 uppercase flex items-center justify-center gap-2"><button onclick="speak('Is this a solution?')" class="bg-blue-100 text-blue-600 rounded-full w-8 h-8 flex items-center justify-center">🔊</button> Is this a solution?</div><p class="math-font text-2xl font-bold text-slate-800 mb-6">${q.q}</p>`;
+            else if (q.type === 'find_boundary') promptHtml = `<div class="text-lg text-slate-500 font-bold mb-2 uppercase">Find boundary line</div><p class="math-font text-3xl font-bold text-slate-800 mb-6">${q.q}</p>`;
+
+            return `
+                ${createHeader('MINI_GAME', '🎮 MINI GAME CHALLENGE')}
+                <div class="flex-1 flex flex-col p-6 fade-in bg-slate-50">
+                    
+                    <div class="flex justify-between items-center mb-6 bg-white p-4 rounded-2xl shadow-sm">
+                        <div class="font-bold text-slate-500">Q: ${state.subIndex + 1}/${GAME_DATA.length}</div>
+                        <div class="font-black text-blue-600 text-xl">⭐ ${state.score}</div>
+                    </div>
+
+                    <div class="flex-1 flex flex-col items-center justify-center">
+                        <div class="bg-white border-2 border-slate-100 rounded-3xl p-8 w-full shadow-sm text-center mb-8">
+                            ${promptHtml}
+                        </div>
+
+                        <div class="w-full space-y-3">
+                            ${q.opts.map((opt, i) => `
+                                <button onclick="checkGameAnswer('${opt.replace(/'/g, "\\'")}', '${q.a.replace(/'/g, "\\'")}')" class="game-btn w-full p-4 rounded-xl text-xl font-bold text-center bg-white border-2 border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition-colors shadow-sm">
+                                    ${q.type === 'find_boundary' ? `<span class="math-font">${opt}</span>` : opt}
+                                </button>
+                            `).join('')}
+                        </div>
+                        
+                        <div id="game-feedback" class="h-16 mt-6 w-full flex justify-center items-center"></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        window.checkGameAnswer = function(selected, correct) {
+            const isCorrect = selected === correct;
+            const btns = document.querySelectorAll('.game-btn');
+            btns.forEach(b => {
+                b.disabled = true;
+                if(b.innerText.includes(selected) || (b.querySelector('.math-font') && b.querySelector('.math-font').innerText.includes(selected))) {
+                    b.classList.add(isCorrect ? 'bg-green-100' : 'bg-red-100');
+                    b.classList.add(isCorrect ? 'border-green-500' : 'border-red-500');
+                    b.classList.add(isCorrect ? 'text-green-800' : 'text-red-800');
+                }
+                if(b.innerText.includes(correct) || (b.querySelector('.math-font') && b.querySelector('.math-font').innerText.includes(correct))) {
+                     b.classList.add('bg-green-100', 'border-green-500', 'text-green-800');
+                }
+            });
+
+            if(isCorrect) state.score += 10;
+
+            const isLast = state.subIndex === GAME_DATA.length - 1;
+            const nextAction = isLast ? "state.gameInit=false; navigate('SPEED_ROUND')" : `navigate('MINI_GAME', ${state.subIndex + 1})`;
+
+            document.getElementById('game-feedback').innerHTML = `
+                <div class="w-full flex items-center justify-between p-4 rounded-xl ${isCorrect ? 'bg-green-500 text-white' : 'bg-red-500 text-white'} slide-in shadow-md">
+                    <span class="font-bold text-lg">${isCorrect ? '✓ Correct! +10' : '✕ Incorrect'}</span>
+                    <button onclick="${nextAction}" class="bg-white/20 hover:bg-white/30 px-6 py-2 rounded-lg font-bold">NEXT ➔</button>
+                </div>
+            `;
+        }
+
+        function renderSpeedRound() {
+            if(state.subIndex === 0 && !state.speedInit) {
+                state.speedInit = true;
+                state.timerValue = 60;
+                state.score = 0;
+                state.combo = 0;
+                state.currentQ = generateSpeedQ();
+                
+                if(state.timer) clearInterval(state.timer);
+                state.timer = setInterval(() => {
+                    state.timerValue--;
+                    const timerEl = document.getElementById('speed-timer');
+                    if(timerEl) timerEl.innerText = state.timerValue;
+                    
+                    if(state.timerValue <= 0) {
+                        clearInterval(state.timer);
+                        state.timer = null;
+                        state.speedInit = false;
+                        navigate('FINAL_CHALLENGE');
+                    }
+                }, 1000);
+            }
+
+            const q = state.currentQ;
+
+            return `
+                <div class="p-4 bg-slate-900 text-white sticky top-0 z-10 flex justify-between items-center shadow-md">
+                    <div class="font-bold">⚡ SPEED ROUND</div>
+                    <div class="flex items-center gap-4">
+                        <div class="text-amber-400 font-bold">🔥 Combo x${state.combo}</div>
+                        <div class="text-blue-400 font-black text-xl">⭐ ${state.score}</div>
+                    </div>
+                </div>
+                <div class="flex-1 flex flex-col p-6 fade-in bg-slate-800 text-white">
+                    
+                    <div class="flex justify-center mb-8">
+                        <div class="w-24 h-24 rounded-full border-4 ${state.timerValue < 10 ? 'border-red-500 text-red-500' : 'border-blue-500 text-blue-500'} flex items-center justify-center text-4xl font-black bg-slate-900 shadow-[0_0_15px_rgba(59,130,246,0.5)]">
+                            <span id="speed-timer">${state.timerValue}</span>
+                        </div>
+                    </div>
+
+                    <div class="flex-1 flex flex-col items-center justify-center w-full max-w-sm mx-auto">
+                        <div class="text-center mb-8">
+                            <p class="text-slate-400 font-bold mb-2 uppercase">${q.type}</p>
+                            <h2 class="text-3xl font-black math-font bg-slate-700 p-6 rounded-2xl shadow-inner border border-slate-600">${q.q}</h2>
+                        </div>
+
+                        <div class="w-full space-y-3">
+                            ${q.opts.map(opt => `
+                                <button onclick="checkSpeedAnswer('${opt.replace(/'/g, "\\'")}', '${q.a.replace(/'/g, "\\'")}')" class="w-full p-4 rounded-xl text-xl font-bold text-center bg-slate-700 border-2 border-slate-600 hover:bg-slate-600 hover:border-slate-500 transition-colors active:scale-95">
+                                    ${opt}
+                                </button>
+                            `).join('')}
+                        </div>
+                        
+                        <div id="speed-feedback" class="h-8 mt-4 text-center font-bold text-lg"></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function generateSpeedQ() {
+            const types = [
+                { t: 'Meaning', pool: DATA_WORDS.map(w => ({q: w.en, a: w.vi, opts: DATA_WORDS.map(x=>x.vi).sort(()=>0.5-Math.random()).slice(0,3)})) },
+                { t: 'Math Talk', pool: DATA_MATH_TALK.map(w => ({q: w.en, a: w.vi, opts: DATA_MATH_TALK.map(x=>x.vi).sort(()=>0.5-Math.random()).slice(0,3)})) },
+                { t: 'Solid or Dashed', pool: [ {q: "x < 2", a: "DASHED"}, {q: "y >= x", a: "SOLID"}, {q: "2x+y > 0", a: "DASHED"}, {q: "x-y <= 5", a: "SOLID"} ].map(x => ({...x, opts: ["SOLID", "DASHED"]})) }
+            ];
+            const t = types[Math.floor(Math.random() * types.length)];
+            let q = t.pool[Math.floor(Math.random() * t.pool.length)];
+            if(!q.opts.includes(q.a)) q.opts[0] = q.a; // Ensure answer is in options
+            q.opts.sort(() => 0.5 - Math.random());
+            return { type: t.t, q: q.q, a: q.a, opts: q.opts };
+        }
+
+        window.checkSpeedAnswer = function(selected, correct) {
+            const feedback = document.getElementById('speed-feedback');
+            if(selected === correct) {
+                state.combo++;
+                let pts = 10;
+                if(state.combo >= 3) pts += 5;
+                state.score += pts;
+                feedback.innerHTML = `<span class="text-green-400">✓ Correct! +${pts}</span>`;
+            } else {
+                state.combo = 0;
+                feedback.innerHTML = `<span class="text-red-400">✕ Try again!</span>`;
+            }
+            // Generate next immediately
+            state.currentQ = generateSpeedQ();
+            setTimeout(() => {
+                if(state.screen === 'SPEED_ROUND') render(); // Re-render to show new question
+            }, 300);
+        }
+
+        const FINAL_TASKS = [
+            { math: "x + y < 4", qAudio: "Solid or dashed?", ans: "Dashed.", t: "custom_gt" },
+            { math: "x + y ≤ 4", qAudio: "Solid or dashed?", ans: "Solid.", t: "custom_leq" },
+            { math: "x + y < 5<br/>A(1,2)", qAudio: "Is this a solution?", ans: "Yes, it is.", t: "point-true" },
+            { math: "x + y < 5<br/>B(3,3)", qAudio: "Is this a solution?", ans: "No, it isn't.", t: "point-false" }
+        ];
+
+        function renderFinalChallenge() {
+            const q = FINAL_TASKS[state.subIndex];
+            const isLast = state.subIndex === FINAL_TASKS.length - 1;
+
+            if(!state.isAnswering && !state.timer) {
+                setTimeout(() => speak(q.qAudio), 500);
+            }
+
+            return `
+                ${createHeader('FINAL_CHALLENGE', `FINAL SPEAKING (${state.subIndex + 1}/4)`)}
+                <div class="flex-1 flex flex-col p-6 fade-in bg-white">
+                    <div class="text-center mb-6">
+                        <h2 class="text-2xl font-black text-slate-800">Final Challenge</h2>
+                        <p class="text-slate-500">Speak your answer out loud.</p>
+                    </div>
+
+                    <div class="flex-1 flex flex-col items-center">
+                        <div class="w-full bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-6 flex flex-col items-center">
+                            <p class="math-font text-2xl font-bold text-slate-800 mb-4 text-center">${q.math}</p>
+                            <div class="w-full pointer-events-none">${getSVGGraph(q.t)}</div>
+                        </div>
+
+                        <button onclick="speak('${q.qAudio.replace(/'/g, "\\'")}')" class="flex items-center gap-2 bg-blue-50 text-blue-700 px-6 py-3 rounded-full font-bold text-lg mb-8 hover:bg-blue-100 border border-blue-100 shadow-sm active:scale-95">
+                            🔊 ${q.qAudio}
+                        </button>
+
+                        <div class="w-full min-h-[100px]">
+                            ${!state.isAnswering ? `
+                                <button onclick="state.isAnswering=true; render()" class="w-full bg-slate-800 text-white font-bold py-4 rounded-2xl text-lg hover:bg-slate-700 shadow-lg active:scale-95 transition-transform">
+                                    SHOW ANSWER
+                                </button>
+                            ` : `
+                                <div class="w-full bg-green-50 border-2 border-green-200 rounded-2xl p-6 text-center slide-in">
+                                    <p class="text-3xl font-black text-green-700 mb-4">"${q.ans}"</p>
+                                    <button onclick="speak('${q.ans.replace(/'/g, "\\'")}')" class="bg-white border border-green-300 text-green-800 px-6 py-3 rounded-full font-bold shadow-sm inline-flex items-center gap-2 hover:bg-green-100 active:scale-95">
+                                        🔊 Listen to the answer
+                                    </button>
+                                </div>
+                            `}
+                        </div>
+                    </div>
+
+                    <div class="mt-6 h-14">
+                        ${state.isAnswering ? `
+                            <button onclick="navigate(${isLast ? "'EXIT_TICKET'" : "'FINAL_CHALLENGE'"}, ${isLast ? 0 : state.subIndex + 1})" class="w-full py-4 font-bold text-white bg-blue-600 rounded-2xl shadow-md hover:bg-blue-700 active:scale-95 fade-in">
+                                ${isLast ? 'TO EXIT TICKET ➔' : 'NEXT ➔'}
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        const EXIT_Q = [
+            { q: "1. 'nghiệm' in English is:", opts: ["solution", "inequality", "boundary"], a: "solution" },
+            { q: "2. 'đường biên' in English is:", opts: ["solid line", "boundary line", "dashed line"], a: "boundary line" },
+            { q: "3. For < or >, we use:", opts: ["Solid line", "Dashed line"], a: "Dashed line" },
+            { q: "4. For ≤ or ≥, we use:", opts: ["Solid line", "Dashed line"], a: "Solid line" },
+            { q: "5. Is A(1,2) a solution of x + y < 5?", opts: ["Yes", "No"], a: "Yes" }
+        ];
+
+        function renderExitTicket() {
+            if(state.subIndex === 0 && !state.exitInit) {
+                state.exitScore = 0;
+                state.exitInit = true;
+            }
+            const q = EXIT_Q[state.subIndex];
+            const isLast = state.subIndex === EXIT_Q.length - 1;
+
+            return `
+                ${createHeader('EXIT_TICKET', '📝 EXIT TICKET')}
+                <div class="flex-1 flex flex-col p-6 fade-in bg-slate-50">
+                    <div class="flex-1 flex flex-col items-center justify-center">
+                        <div class="w-full max-w-sm">
+                            <h2 class="text-2xl font-black text-slate-800 mb-8 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 text-center">${q.q}</h2>
+                            <div class="space-y-4">
+                                ${q.opts.map(opt => `
+                                    <button onclick="checkExit('${opt}', '${q.a}', ${isLast})" class="exit-btn w-full p-4 rounded-xl text-xl font-bold bg-white border-2 border-slate-200 hover:border-blue-500 hover:text-blue-600 transition-colors shadow-sm">
+                                        ${opt}
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        window.checkExit = function(selected, correct, isLast) {
+            if(selected === correct) state.exitScore++;
+            if(isLast) {
+                setTimeout(() => navigate('COMPLETE'), 300);
+            } else {
+                navigate('EXIT_TICKET', state.subIndex + 1);
+            }
+        }
+
+        function renderComplete() {
+            const isGood = state.exitScore >= 4;
+            return `
+                <div class="flex-1 flex flex-col items-center justify-center p-6 text-center fade-in bg-gradient-to-b from-green-50 to-white">
+                    <div class="text-6xl mb-6 animate-bounce">🎉</div>
+                    <h1 class="text-4xl font-black text-green-700 mb-2">GREAT JOB!</h1>
+                    <h2 class="text-xl text-slate-600 font-bold mb-1">You are ready for Math class!</h2>
+                    <p class="text-slate-500 mb-8">Em đã sẵn sàng cho tiết Toán!</p>
+                    
+                    <div class="bg-white p-6 rounded-3xl shadow-lg border border-green-100 w-full max-w-xs mb-8">
+                        <div class="flex justify-between items-center py-2 border-b border-slate-100">
+                            <span class="text-slate-500 font-bold">Words learned</span>
+                            <span class="font-black text-green-600">6/6</span>
+                        </div>
+                        <div class="flex justify-between items-center py-2 border-b border-slate-100">
+                            <span class="text-slate-500 font-bold">Math Talk</span>
+                            <span class="font-black text-green-600">4/4</span>
+                        </div>
+                        <div class="flex justify-between items-center py-2 border-b border-slate-100">
+                            <span class="text-slate-500 font-bold">Game Score</span>
+                            <span class="font-black text-blue-600">${state.score}</span>
+                        </div>
+                        <div class="flex justify-between items-center py-2">
+                            <span class="text-slate-500 font-bold">Exit Ticket</span>
+                            <span class="font-black ${isGood ? 'text-green-600' : 'text-amber-500'}">${state.exitScore}/5</span>
+                        </div>
+                    </div>
+
+                    ${!isGood ? `
+                        <div class="text-amber-600 font-bold mb-6 bg-amber-50 px-4 py-2 rounded-full border border-amber-200">
+                            Let's practice one more time! (Cùng ôn tập thêm nhé)
+                        </div>
+                    ` : ''}
+
+                    <div class="flex flex-col gap-3 w-full max-w-xs">
+                        <button onclick="navigate('WORDS')" class="w-full bg-blue-100 text-blue-700 font-bold py-3 rounded-xl hover:bg-blue-200 transition-colors">🔄 PRACTICE AGAIN</button>
+                        <button onclick="navigate('MINI_GAME')" class="w-full bg-indigo-100 text-indigo-700 font-bold py-3 rounded-xl hover:bg-indigo-200 transition-colors">🎮 PLAY GAME AGAIN</button>
+                        <button onclick="navigate('HOME')" class="w-full bg-slate-800 text-white font-bold py-3 rounded-xl hover:bg-slate-700 transition-colors mt-2">🏠 HOME</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function render() {
+            const app = document.getElementById('app');
+            let html = '';
+            
+            switch(state.screen) {
+                case 'HOME': html = renderHome(); break;
+                case 'WORDS': html = renderWords(); break;
+                case 'LISTEN_REPEAT': html = renderListenRepeat(); break;
+                case 'QUICK_REVIEW': html = renderQuickReview(); break;
+                case 'MATH_TALK': html = renderMathTalk(); break;
+                case 'SPEAKING_L1': html = renderSpeakingL1(); break;
+                case 'SPEAKING_L2': html = renderSpeakingL2(); break;
+                case 'SPEAKING_L3': html = renderSpeakingL3(); break;
+                case 'FLASHCARDS': html = renderFlashcards(); break;
+                case 'MINI_GAME': html = renderMiniGame(); break;
+                case 'SPEED_ROUND': html = renderSpeedRound(); break;
+                case 'FINAL_CHALLENGE': html = renderFinalChallenge(); break;
+                case 'EXIT_TICKET': html = renderExitTicket(); break;
+                case 'COMPLETE': html = renderComplete(); break;
+                default: html = renderHome();
+            }
+            
+            app.innerHTML = html;
+        }
+
+        // Initialize App
+        window.onload = () => {
+            render();
+            // Pre-load voices
+            if(window.speechSynthesis) window.speechSynthesis.getVoices();
+        };
+
+    </script>
+</body>
+</html>
